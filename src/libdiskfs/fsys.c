@@ -14,6 +14,7 @@ static Fsys *(*opentab[])(Disk*) =
 	fsysopenkfs,
 	fsysopenext2,
 	fsysopenfat,
+	fsysopenraw,
 };
 
 Fsys*

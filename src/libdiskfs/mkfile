@@ -8,6 +8,7 @@ FSOFILES=\
 	ffs.$O\
 	hfs.$O\
 	kfs.$O\
+	raw.$O
 
 DISKOFILES=\
 	cache.$O\

@@ -114,6 +114,14 @@ diskventiclose(Disk *dd)
 	free(d);
 }
 
+static u64int
+diskventisize(Disk *dd)
+{
+	DiskVenti *d = (DiskVenti*)dd;
+
+	return d->e.size;
+}
+
 Disk*
 diskopenventi(VtCache *c, uchar score[VtScoreSize])
 {
@@ -149,6 +157,7 @@ diskopenventi(VtCache *c, uchar score[VtScoreSize])
 
 	d->disk._read = diskventiread;
 	d->disk._close = diskventiclose;
+	d->disk._size = diskventisize;
 	d->e = e;
 	d->c = c;
 	return &d->disk;
