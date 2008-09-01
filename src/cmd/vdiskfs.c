@@ -99,10 +99,11 @@ int debug;
 int private;
 Fcall thdr;
 Fcall rhdr;
-uchar	mdata[IOHDRSZ+Maxfdata];
+char	mdata[IOHDRSZ+Maxfdata];
 char	rdata[Maxfdata];	/* buffer for data in reply */
 int	messagesize = sizeof mdata;
 int	mfd[2];
+static char statbuf[STATMAX]; 
 
 void
 notifyf(void *a, char *s)
@@ -168,10 +169,10 @@ newfid(int fid)
 	return f;
 }
 
-static uchar
+static char
 ustat2qidtype(struct stat *st)
 {
-	uchar ret;
+	char ret;
 
 	ret = 0;
 	if (S_ISDIR(st->st_mode))
@@ -227,7 +228,7 @@ umode2npmode(mode_t umode, int dotu)
 }
 
 static int
-ustat2dir(char *path, struct stat *st, uchar *statbuf, int nbuf, int dotu)
+ustat2dir(char *path, struct stat *st, char *sbuf, int nbuf, int dotu)
 {
 	int err;
 	Dir wstat;
@@ -278,7 +279,7 @@ ustat2dir(char *path, struct stat *st, uchar *statbuf, int nbuf, int dotu)
 	else
 		wstat.name = path;
 
-	n = convD2Mu(&wstat, statbuf, nbuf, dotu);
+	n = convD2Mu(&wstat, (uchar *)sbuf, nbuf, dotu);
 	if(n > 2)
 		return n;
 
@@ -286,7 +287,7 @@ ustat2dir(char *path, struct stat *st, uchar *statbuf, int nbuf, int dotu)
 }
 
 static int
-omode2uflags(uchar mode)
+omode2uflags(char mode)
 {
 	int ret;
 
@@ -328,6 +329,9 @@ rclunk(Fid *f)
 
 	if (f->open)
 		close(f->file.fd);
+
+	if (f->file.dir)
+		closedir(f->file.dir);	
 
 	if (f->vdisk.active) {
 		f->vdisk.fsys->_close(f->vdisk.fsys);
@@ -561,14 +565,18 @@ ropen(Fid *f)
 	if(f->file.qid.type & QTDIR){
 		if(mode != OREAD)
 			return Eperm;
+		f->file.dir = opendir(f->path);
+		if (!f->file.dir)
+			return Eperm;
 		rhdr.qid = f->file.qid;
-		return 0;
 	}
 
 	f->file.fd = open(f->path, omode2uflags(mode));
 	if (f->file.fd < 0)
 		return Eperm;
-fprint(2, "open setup fd %d mode: %x %x\n",f->file.fd, thdr.mode, omode2uflags(mode));
+
+	if (debug)
+		fprint(2, "open setup fd %d mode: %x %x\n",f->file.fd, thdr.mode, omode2uflags(mode));
 
 	rhdr.qid = f->file.qid; 
 	rhdr.iounit = messagesize-IOHDRSZ;
@@ -592,16 +600,15 @@ rcreate(Fid *f)
 	return Eperm;
 }
 
-#ifdef LATER
-
 char*
-rread_dir(Fid *f, char *buf, long offset, int size)
+rread_dir(Fid *f, char *buf, long offset, int count)
 {
-	int n, plen;
+	int i, n, plen;
 	struct dirent *dirent;
 	char *dname;
+	char *path;
 
-	/* TODO: eventually we probably want readdir to work */
+	struct stat st;
 
 	if (offset = 0) {
 		rewinddir(f->file.dir);
@@ -612,55 +619,55 @@ rread_dir(Fid *f, char *buf, long offset, int size)
 	n = 0;
 	dirent = NULL;
 	dname = f->file.direntname;
-        while (n < count) {
-                if (!dname) {
-                        dirent = readdir(f->file.dir);
-                        if (!dirent)
-                                break;
+	while (n < count) {
+		if (!dname) {
+			dirent = readdir(f->file.dir);
+			if (!dirent)
+ 				break;
 
-                        if (strcmp(dirent->d_name, ".") == 0
-                        || strcmp(dirent->d_name, "..") == 0)
-                                continue;
+			if (strcmp(dirent->d_name, ".") == 0 || strcmp(dirent->d_name, "..") == 0)
+				continue;
 
-                        dname = dirent->d_name;
-                }
+  			dname = dirent->d_name;
+		}
 
-                path = malloc(plen + strlen(dname) + 2);
-                sprintf(path, "%s/%s", f->path, dname);
+		path = malloc(plen + strlen(dname) + 2);
+		sprint(path, "%s/%s", f->path, dname);
 
-                if (lstat(path, &st) < 0) {
-                        free(path);
-                        create_rerror(errno);
-                        return 0;
-                }
+		if (lstat(path, &st) < 0) {
+ 			free(path);
+			/* skip problem children */
+			continue;
+		}
+
+		i = ustat2dir(path, &st, buf+n, count - n - 1, dotu);
 		
-		rhdr.nstat = ustat2dir(f->path, &f->file.stat, statbuf, 
-								STATMAX, dotu);
+		free(path);
+		path = NULL;
 
-	/* TODO: extensions */
-                free(path);
-                path = NULL;
-                if (i==0)
-                        break;
+		if (i==0)
+			break;
 
-                dname = NULL;
-                n += i;
-        }
-        if (f->file.direntname) {
-                free(f->file.direntname);
-                f->file.direntname = NULL;
-        }
+		dname = NULL;
+		n+= i;
+	}
 
-        if (dirent)
-                f->file.direntname = strdup(dirent->d_name);
+    if (f->file.direntname) {
+		free(f->file.direntname);
+ 		f->file.direntname = NULL;
+	}
 
-        f->file.diroffset += n;
+	if (dirent)
+		f->file.direntname = strdup(dirent->d_name);
 
-	/* TODO: This is weird... */
-        return n;
+	f->file.diroffset += n;
+
+	rhdr.data = buf;
+	rhdr.count = n;	
+
+	return 0;
 }
 
-#endif
 
 /* TODO: there has to be an error path here */
 static char *
@@ -671,7 +678,9 @@ rread_vdisk(Fid *f, char *buf, ulong offset, int count)
 	int bno = offset / f->vdisk.blocksize;
 	int extra = offset % f->vdisk.blocksize;
 
-fprint(2, "read_vdisk: off: %lud count: %d bno: %d\n", offset, count, bno);
+	if(bno > f->vdisk.fsys->nblock)
+		return 0;
+
 
 	b = fsysreadblock(f->vdisk.fsys, bno);
 
@@ -679,9 +688,6 @@ fprint(2, "read_vdisk: off: %lud count: %d bno: %d\n", offset, count, bno);
 		n = f->vdisk.blocksize-extra;
 	else
 		n = count;
-
-fprint(2, "nipplehead: n %d extra %d\n", n, extra);
-
 
 	if (b == nil) 
 		memset(buf, 0, n);
@@ -716,7 +722,7 @@ rread(Fid *f)
 		cnt = messagesize;
 
 	if(f->file.qid.type & QTDIR)
-		return Eperm; /* return rread_dir(f, buf, off, cnt); */
+		return rread_dir(f, buf, off, cnt);
 
 	if(f->vdisk.active)
 		return rread_vdisk(f, buf, off, cnt);
@@ -752,7 +758,6 @@ char *
 rstat(Fid *f)
 {	
 	/* TODO: This sucks - need better cleanup */
-	static uchar statbuf[STATMAX]; 
 	char *extension;
 	char *err = 0;
 
@@ -785,7 +790,7 @@ rstat(Fid *f)
 	}
 
 	rhdr.nstat = ustat2dir(f->path, &f->file.stat, statbuf, STATMAX, dotu);
-	rhdr.stat = statbuf;
+	rhdr.stat = (uchar *)statbuf;
 	return err;
 }
 
@@ -831,7 +836,7 @@ io(void)
 			error("mount read");
 		if(n == 0)
 			error("mount eof");
-		if(convM2Su(mdata, n, &thdr, dotu) == 0)
+		if(convM2Su((uchar *)mdata, n, &thdr, dotu) == 0)
 			continue;
 
 		if(debug)
@@ -855,7 +860,7 @@ io(void)
 		rhdr.tag = thdr.tag;
 		if(debug)
 			fprint(2, "vdiskfs %d:->%F\n", pid, &rhdr);/**/
-		n = convS2Mu(&rhdr, mdata, messagesize, dotu);
+		n = convS2Mu(&rhdr, (uchar*)mdata, messagesize, dotu);
 		if(n == 0)
 			error("convS2M error on write");
 		if(write(mfd[1], mdata, n) != n)
