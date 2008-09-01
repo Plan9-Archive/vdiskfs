@@ -7,6 +7,8 @@
 #include <diskfs.h>
 #include <thread.h>
 #include <fcall.h>
+#include <sys/types.h>
+#include <dirent.h>
 
 /* TODO: Necessary? */
 enum
@@ -19,12 +21,15 @@ typedef struct Fid Fid;
 typedef struct PosixFile PosixFile;
 typedef struct Vdisk Vdisk;
 
+struct VentiState {
+	VtConn 		*z;
+	VtCache 		*vc;
+};
+
 struct Vdisk {
 	int 			active;
 	int 			blocksize;
 	unsigned char 	score[VtScoreSize];
-	VtConn 			*z;
-	VtCache 		*vc;
 	Fsys 			*fsys;
 	Disk 			*disk;
 };
@@ -32,7 +37,7 @@ struct Vdisk {
 struct PosixFile {
 
 	int				fd;
-	Dir				*dir;		/* ugh - fuck */
+	DIR				*dir;		/* ugh - fuck */
 	int				diroffset;	/* ugh - fuck */
 	char 			*direntname;/* ugh? fuck? */
 	struct stat		stat;
@@ -93,6 +98,7 @@ char *rootpath = "/";	/* top of the exported tree */
  * standard p9p fsys interfaces?
  */
 
+struct VentiState ventistate;
 int dotu = 0; 		
 Fid	*fids;
 int debug;
@@ -456,29 +462,29 @@ rwalk(Fid *f)
 			memcpy(path + n, thdr.wname[i], len);
 			n += len;
 			path[n] = '\0';
-fprint(2, "f %d walk %s %s\n", f->fid, f->path, path);
+			if (debug)
+				fprint(2, "f %d walk %s %s\n", f->fid, f->path, path);
 			if (lstat(path, &f->file.stat) < 0) {
 				free(path);
 				err = Enotexist;
+				break;
 			} else
 				ustat2qid(&f->file.stat, &rhdr.wqid[rhdr.nwqid++]);
 		}
 	
 		if(err == nil) {
+			/* success */
 			free(f->path);
 			f->path = path;
 			ustat2qid(&f->file.stat, &f->file.qid);
-		} else
-			fprint(2, "you suck %s\n", err);
+		} else {
+			if(nf!=nil)
+				rclunk(nf);
+			if(rhdr.nwqid==0)
+				return err;
+		}
 	}
 
-	if(nf != nil && (err!=nil || rhdr.nwqid<thdr.nwname)){
-		/* clunk the new fid, which is the one we walked */
-fprint(2, "f %d zero busy\n", f->fid);
-		f->busy = 0;
-	}
-
-	assert(f->busy);
 	return err;
 }
 
@@ -520,6 +526,76 @@ rcreate(Fid *f)
 	return Eperm;
 }
 
+#ifdef LATER
+
+char*
+rread_dir(Fid *f, char *buf, long offset, int size)
+{
+	int n, plen;
+	struct dirent *dirent;
+	char *dname;
+
+	/* TODO: eventually we probably want readdir to work */
+
+	if (offset = 0) {
+		rewinddir(f->file.dir);
+		f->file.diroffset = 0;
+	}
+
+	plen = strlen(f->path);
+	n = 0;
+	dirent = NULL;
+	dname = f->file.direntname;
+        while (n < count) {
+                if (!dname) {
+                        dirent = readdir(f->file.dir);
+                        if (!dirent)
+                                break;
+
+                        if (strcmp(dirent->d_name, ".") == 0
+                        || strcmp(dirent->d_name, "..") == 0)
+                                continue;
+
+                        dname = dirent->d_name;
+                }
+
+                path = malloc(plen + strlen(dname) + 2);
+                sprintf(path, "%s/%s", f->path, dname);
+
+                if (lstat(path, &st) < 0) {
+                        free(path);
+                        create_rerror(errno);
+                        return 0;
+                }
+		
+		rhdr.nstat = ustat2dir(f->path, &f->file.stat, statbuf, 
+								STATMAX, dotu);
+
+	/* TODO: extensions */
+                free(path);
+                path = NULL;
+                if (i==0)
+                        break;
+
+                dname = NULL;
+                n += i;
+        }
+        if (f->file.direntname) {
+                free(f->file.direntname);
+                f->file.direntname = NULL;
+        }
+
+        if (dirent)
+                f->file.direntname = strdup(dirent->d_name);
+
+        f->file.diroffset += n;
+
+	/* TODO: This is weird... */
+        return n;
+}
+
+#endif
+
 char*
 rread(Fid *f)
 {
@@ -539,9 +615,8 @@ rread(Fid *f)
 	if(cnt > messagesize)	/* shouldn't happen, anyway */
 		cnt = messagesize;
 
-	/* TODO: eventually we probably want readdir to work */
 	if(f->file.qid.type & QTDIR)
-		return Eperm;
+		return Eperm; /* return rread_dir(f, buf, off, cnt); */
 
 	n = pread(f->file.fd, buf, cnt, off);
 	if (n < 0) {
@@ -709,6 +784,28 @@ initfcalls(void)
 	fcalls[Twstat]=		rwstat;
 }
 
+static int
+initventi(void)
+{
+	if((ventistate.z = vtdial(nil)) == nil) {
+			fprint(2, "vtdial: %r");
+			return -1;
+	}
+
+	if(vtconnect(ventistate.z) < 0) {
+		fprint(2, "vtconnect: %r");
+		return -1;
+	}
+
+	/* TODO: parameterize cache */
+	if((ventistate.vc = vtcachealloc(ventistate.z, 16384, 32)) == nil) {
+		fprint(2, "vtcache: %r");
+		return -1;
+	}
+
+	return 0;
+}
+
 void
 threadmain(int argc, char *argv[])
 {
@@ -749,6 +846,9 @@ threadmain(int argc, char *argv[])
 	default:
 		usage();
 	}ARGEND
+
+	if(initventi() < 0)
+		error("venti connection failed");
 
 	if(pipe(p) < 0)
 		error("pipe failed");
