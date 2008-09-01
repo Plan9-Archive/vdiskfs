@@ -37,9 +37,9 @@ struct Vdisk {
 struct PosixFile {
 
 	int				fd;
-	DIR				*dir;		/* ugh - fuck */
-	int				diroffset;	/* ugh - fuck */
-	char 			*direntname;/* ugh? fuck? */
+	DIR				*dir;		
+	int				diroffset;	
+	char 			*direntname;
 	struct stat		stat;
 	Qid				qid;	
 };
@@ -67,12 +67,6 @@ enum
 	Pgroup = 	8,
 	Powner =	64
 };
-
-char	*rflush(Fid*), *rversion(Fid*), *rauth(Fid*),
-		*rattach(Fid*), *rwalk(Fid*),
-		*ropen(Fid*), *rcreate(Fid*),
-		*rread(Fid*), *rwrite(Fid*), *rclunk(Fid*),
-		*rremove(Fid*), *rstat(Fid*), *rwstat(Fid*);
 
 char 	*(*fcalls[Tmax])(Fid*);
 
@@ -135,15 +129,6 @@ emallocz(ulong n)
 	if(!p)
 		error("out of memory");
 
-	return p;
-}
-
-void *
-erealloc(void *p, ulong n)
-{
-	p = realloc(p, n);
-	if(!p)
-		error("out of memory");
 	return p;
 }
 
@@ -336,6 +321,33 @@ omode2uflags(uchar mode)
 	return ret;
 }
 
+char *
+rclunk(Fid *f)
+{
+	char *e = nil;
+
+	if (f->open)
+		close(f->file.fd);
+
+	if (f->vdisk.active) {
+		f->vdisk.fsys->_close(f->vdisk.fsys);
+		f->vdisk.disk->_close(f->vdisk.disk);
+
+		f->vdisk.active = 0;		
+	}	
+
+	f->busy = 0;
+	f->open = 0;
+
+	free(f->path);
+	f->path = nil;
+
+	memset(&f->vdisk, 0, sizeof(Vdisk));
+	memset(&f->file, 0, sizeof(PosixFile));
+
+	return e;
+}
+
 char*
 rversion(Fid *x)
 {
@@ -489,9 +501,55 @@ rwalk(Fid *f)
 }
 
 char *
+ropen_vdisk(Fid *f)
+{
+	char *prefix;
+	char scorebuf[255];
+	int n;
+	char *err = 0;
+
+	/* read score */
+	n = pread(f->file.fd, scorebuf, 255, 0);
+	if (n < 40) {
+		fprint(2, "tried to open a vdisk, but got short score %d (%s)\n", 
+															n, scorebuf);
+		err = Enotexist;
+		goto ventierror;
+	}
+	
+	scorebuf[n-1]='\0';
+	
+	if (vtparsescore(scorebuf, &prefix, f->vdisk.score) < 0) {
+		fprint(2, "bad score: %r\n");
+		err = Enotexist;
+		goto ventierror;
+	}
+
+	if((f->vdisk.disk = diskopenventi(ventistate.vc, f->vdisk.score)) == nil) {
+		fprint(2, "diskopenventi: %r\n");
+		err = Enotexist;
+		goto ventierror;
+	}
+
+	if((f->vdisk.fsys = fsysopen(f->vdisk.disk)) == nil) {
+		fprint(2, "fys open: %r\n");
+		err = Enotexist;
+		goto ventierror;
+	}
+
+	f->vdisk.blocksize = 4096; /* TODO: should be able to pull this from VtRoot */
+	f->vdisk.active++;
+
+ventierror:
+	return err;
+}
+
+char *
 ropen(Fid *f)
 {
 	int mode;
+	char *extension;
+	char *err = 0;
 
 	if(!f->busy)
 		return Ebadfid;
@@ -515,7 +573,15 @@ fprint(2, "open setup fd %d mode: %x %x\n",f->file.fd, thdr.mode, omode2uflags(m
 	rhdr.qid = f->file.qid; 
 	rhdr.iounit = messagesize-IOHDRSZ;
 	f->open = 1;
-	return 0;
+
+	extension = f->path + (strlen(f->path) - 6);
+	if (strncmp(extension, ".vdisk", 5) == 0) {
+		err = ropen_vdisk(f);
+		if(err)
+			close(f->file.fd);
+	}
+
+	return err;
 }
 
 char *
@@ -596,6 +662,40 @@ rread_dir(Fid *f, char *buf, long offset, int size)
 
 #endif
 
+/* TODO: there has to be an error path here */
+static char *
+rread_vdisk(Fid *f, char *buf, ulong offset, int count)
+{
+	Block *b;
+	int n = 0;
+	int bno = offset / f->vdisk.blocksize;
+	int extra = offset % f->vdisk.blocksize;
+
+fprint(2, "read_vdisk: off: %lud count: %d bno: %d\n", offset, count, bno);
+
+	b = fsysreadblock(f->vdisk.fsys, bno);
+
+	if(count+extra > f->vdisk.blocksize)
+		n = f->vdisk.blocksize-extra;
+	else
+		n = count;
+
+fprint(2, "nipplehead: n %d extra %d\n", n, extra);
+
+
+	if (b == nil) 
+		memset(buf, 0, n);
+	else {
+		memcpy(buf, b->data+extra, n);
+		blockput(b);
+	}
+
+	rhdr.data = buf;
+	rhdr.count = n;
+
+	return 0;
+}
+
 char*
 rread(Fid *f)
 {
@@ -618,6 +718,9 @@ rread(Fid *f)
 	if(f->file.qid.type & QTDIR)
 		return Eperm; /* return rread_dir(f, buf, off, cnt); */
 
+	if(f->vdisk.active)
+		return rread_vdisk(f, buf, off, cnt);
+
 	n = pread(f->file.fd, buf, cnt, off);
 	if (n < 0) {
 		fprint(2, "pread returned %d\n",n);
@@ -638,26 +741,6 @@ rwrite(Fid *f)
 }
 
 char *
-rclunk(Fid *f)
-{
-	char *e = nil;
-
-	if (f->open)
-		close(f->file.fd);
-
-	f->busy = 0;
-	f->open = 0;
-
-	free(f->path);
-	f->path = nil;
-
-	memset(&f->vdisk, 0, sizeof(Vdisk));
-	memset(&f->file, 0, sizeof(PosixFile));
-
-	return e;
-}
-
-char *
 rremove(Fid *f)
 {
 	/* TODO: vdiskfs is readonly right now */
@@ -670,19 +753,40 @@ rstat(Fid *f)
 {	
 	/* TODO: This sucks - need better cleanup */
 	static uchar statbuf[STATMAX]; 
+	char *extension;
+	char *err = 0;
 
 	if(!f->busy)
 		return Ebadfid;
 
-fprint(2, "Stat Path: %s\n", f->path);
+	if(debug)
+		fprint(2, "Stat Path: %s\n", f->path);
 
 	if (lstat(f->path, &f->file.stat) < 0)
 		return Enotexist;
 
+	extension = f->path + (strlen(f->path) - 6);
+	if (strncmp(extension, ".vdisk", 5) == 0) {
+		if ( f->vdisk.active )
+			return Eisopen;
+
+		f->file.fd = open(f->path, OREAD);
+		if (f->file.fd < 0)
+			return Eperm;
+
+		err = ropen_vdisk(f);
+		if(!err) 
+			f->file.stat.st_size = f->vdisk.disk->_size(f->vdisk.disk);
+
+		f->vdisk.fsys->_close(f->vdisk.fsys);
+		f->vdisk.disk->_close(f->vdisk.disk);
+		f->vdisk.active--;
+		close(f->file.fd);
+	}
 
 	rhdr.nstat = ustat2dir(f->path, &f->file.stat, statbuf, STATMAX, dotu);
 	rhdr.stat = statbuf;
-	return 0;
+	return err;
 }
 
 char *
@@ -874,6 +978,10 @@ threadmain(int argc, char *argv[])
 	default:
 		close(p[0]);	/* don't deadlock if child fails */
 	}
+
+	vtcachefree(ventistate.vc);
+	vtfreeconn(ventistate.z);
+
 	threadexits(0);
 }
 
