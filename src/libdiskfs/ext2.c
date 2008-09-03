@@ -26,7 +26,7 @@ static Nfs3Status ext2readdir(Fsys *fsys, SunAuthUnix *au, Nfs3Handle *h, u32int
 static Nfs3Status ext2access(Fsys *fsys, SunAuthUnix *au, Nfs3Handle *h, u32int want, u32int *got, Nfs3Attr *attr);
 
 Fsys*
-fsysopenext2(Disk *disk)
+fsysopenext2(Disk *disk, u32int bs, u64int off)
 {
 	Ext2 *fs;
 	Fsys *fsys;

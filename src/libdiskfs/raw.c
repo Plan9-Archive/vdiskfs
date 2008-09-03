@@ -9,12 +9,8 @@
 #define debug 0
 
 /* 
- * NOTES:
- * Eventually change prototype for open to allow for an offset based open for
- * partitioned systems.
- *
- * Could do the same thing for block size, but we need to be able to encode it in
- * venti someplace so we don't get mismatches
+ * Settable offset is great and all, but we'll need some way of adjusting
+ * on read, no? 
  *
  */
 
@@ -44,7 +40,7 @@ rawclose(Fsys *fsys)
 }
 
 Fsys*
-fsysopenraw(Disk *disk)
+fsysopenraw(Disk *disk, u32int blocksize, u64int offset)
 {
 	Fsys *fsys;
 	struct Rawdisk *rd;
@@ -52,13 +48,11 @@ fsysopenraw(Disk *disk)
 	fsys = emalloc(sizeof(Fsys));
 	rd = emalloc(sizeof(struct Rawdisk));
 	rd->disk = disk;
-	rd->blocksize = 4096;	/* hardcode for now */
-	rd->offset = 0;			/* hardcode for now */
+	rd->blocksize = blocksize;
+	rd->offset = offset;
 	rd->fsys = fsys;
 	fsys->blocksize = rd->blocksize;
 	fsys->nblock = disk->_size(disk)/fsys->blocksize;
-
-	print("nblock: %d %d\n", disk->_size(disk), fsys->nblock);
 
 	fsys->priv = rd;
 	fsys->type = "rawdisk";

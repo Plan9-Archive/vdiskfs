@@ -7,7 +7,7 @@
 
 int allowall;
 
-static Fsys *(*opentab[])(Disk*) =
+static Fsys *(*opentab[])(Disk*, u32int, u64int) =
 {
 	fsysopenffs,
 	fsysopenhfs,
@@ -18,15 +18,21 @@ static Fsys *(*opentab[])(Disk*) =
 };
 
 Fsys*
-fsysopen(Disk *disk)
+fsysopen_new(Disk *disk, u32int bs, u64int off)
 {
 	int i;
 	Fsys *fsys;
 
 	for(i=0; i<nelem(opentab); i++)
-		if((fsys = (*opentab[i])(disk)) != nil)
+		if((fsys = (*opentab[i])(disk, bs, off)) != nil)
 			return fsys;
 	return nil;
+}
+
+Fsys*
+fsysopen(Disk *disk)
+{
+	return fsysopen_new(disk, DEFAULT_BLOCKSIZE, 0);
 }
 
 Block*

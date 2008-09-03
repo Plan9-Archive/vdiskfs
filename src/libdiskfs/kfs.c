@@ -3,7 +3,7 @@
 #include <diskfs.h>
 
 Fsys*
-fsysopenkfs(Disk *disk)
+fsysopenkfs(Disk *disk, u32int bs, u64int off)
 {
 	USED(disk);
 	return nil;
