@@ -6,6 +6,8 @@ typedef struct Block Block;
 typedef struct Disk Disk;
 typedef struct Fsys Fsys;
 
+#define DEFAULT_BLOCKSIZE 4096
+
 #ifndef _NFS3H_	/* in case sunrpc.h, nfs3.h are not included */
 typedef struct SunAuthUnix SunAuthUnix;
 typedef struct Nfs3Attr Nfs3Attr;
@@ -20,6 +22,7 @@ struct Disk
 	Block *(*_read)(Disk *disk, u32int count, u64int offset);
 	int (*_sync)(Disk*);
 	void (*_close)(Disk*);
+	u64int (*_size)(Disk*);
 	void *priv;
 };
 
@@ -76,13 +79,15 @@ void		diskclose(Disk *disk);
 Block*	diskread(Disk *disk, u32int, u64int offset);
 int		disksync(Disk *disk);
 
-Fsys*	fsysopenffs(Disk*);
-Fsys*	fsysopenhfs(Disk*);
-Fsys*	fsysopenkfs(Disk*);
-Fsys*	fsysopenext2(Disk*);
-Fsys*	fsysopenfat(Disk*);
+Fsys*	fsysopenffs(Disk*, u32int blocksize, u64int offset);
+Fsys*	fsysopenhfs(Disk*, u32int blocksize, u64int offset);
+Fsys*	fsysopenkfs(Disk*, u32int blocksize, u64int offset);
+Fsys*	fsysopenext2(Disk*, u32int blocksize, u64int offset);
+Fsys*	fsysopenfat(Disk*, u32int blocksize, u64int offset);
+Fsys*	fsysopenraw(Disk*, u32int blocksize, u64int offset);
 
 Fsys*	fsysopen(Disk *disk);
+Fsys*	fsysopen_new(Disk *disk, u32int blocksize, u64int offset);
 Block*	fsysreadblock(Fsys *fsys, u64int blockno);
 int		fsyssync(Fsys *fsys);
 void		fsysclose(Fsys *fsys);

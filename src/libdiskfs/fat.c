@@ -3,7 +3,7 @@
 #include <diskfs.h>
 
 Fsys*
-fsysopenfat(Disk *disk)
+fsysopenfat(Disk *disk, u32int bs, u64int off)
 {
 	USED(disk);
 	return nil;

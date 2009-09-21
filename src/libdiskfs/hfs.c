@@ -67,7 +67,7 @@ static int hfsinamecmp(Name*, Name*);
 static int hfsnamecmp(Name*, Name*);
 
 Fsys*
-fsysopenhfs(Disk *disk)
+fsysopenhfs(Disk *disk, u32int bs, u64int off)
 {
 	Hfs *fs;
 	Fsys *fsys;

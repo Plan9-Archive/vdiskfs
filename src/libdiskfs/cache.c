@@ -277,6 +277,14 @@ isprime(int n)
 	return 1;
 }
 
+static u64int
+diskcachesize(Disk *dd)
+{
+	DiskCache *d = (DiskCache*)dd;
+
+	return d->subdisk->_size(d->subdisk);
+}
+
 Disk*
 diskcache(Disk *subdisk, uint blocksize, uint ncache)
 {
@@ -298,6 +306,7 @@ diskcache(Disk *subdisk, uint blocksize, uint ncache)
 	d->subdisk = subdisk;
 	d->disk._read = diskcacheread;
 	d->disk._sync = diskcachesync;
+	d->disk._size = diskcachesize;
 	d->disk._close = diskcacheclose;
 
 	for(i=0; i<ncache; i++){

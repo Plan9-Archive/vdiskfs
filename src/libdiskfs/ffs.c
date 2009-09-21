@@ -27,7 +27,7 @@ static Nfs3Status ffsreaddir(Fsys *fsys, SunAuthUnix *au, Nfs3Handle *h, u32int,
 static Nfs3Status ffsaccess(Fsys *fsys, SunAuthUnix *au, Nfs3Handle *h, u32int want, u32int *got, Nfs3Attr *attr);
 
 Fsys*
-fsysopenffs(Disk *disk)
+fsysopenffs(Disk *disk, u32int bs, u64int off)
 {
 	Ffs *fs;
 	Fsys *fsys;

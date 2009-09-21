@@ -79,6 +79,17 @@ diskfileclose(Disk *dd)
 	free(d);
 }
 
+static u64int
+diskfilesize(Disk *dd)
+{
+	DiskFile *d =  (DiskFile*)dd;
+	struct stat s;
+
+	fstat(d->fd, &s);
+
+	return s.st_size;
+}
+
 Disk*
 diskopenfile(char *file)
 {
@@ -95,6 +106,7 @@ diskopenfile(char *file)
 	d->disk._read = diskfileread;
 	d->disk._sync = diskfilesync;
 	d->disk._close = diskfileclose;
+	d->disk._size = diskfilesize;
 	d->fd = fd;
 	return &d->disk;
 }
