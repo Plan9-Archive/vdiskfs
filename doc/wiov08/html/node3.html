@@ -1,0 +1,192 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+
+<!--Converted with LaTeX2HTML 2002-2-1 (1.71)
+original version by:  Nikos Drakos, CBLU, University of Leeds
+* revised and updated by:  Marcus Hennecke, Ross Moore, Herb Swan
+* with significant contributions from:
+  Jens Lippmann, Marek Rouchal, Martin Wilck and others -->
+<HTML>
+<HEAD>
+<TITLE>Implementation</TITLE>
+<META NAME="description" CONTENT="Implementation">
+<META NAME="keywords" CONTENT="cas">
+<META NAME="resource-type" CONTENT="document">
+<META NAME="distribution" CONTENT="global">
+
+<META NAME="Generator" CONTENT="LaTeX2HTML v2002-2-1">
+<META HTTP-EQUIV="Content-Style-Type" CONTENT="text/css">
+
+<LINK REL="STYLESHEET" HREF="cas.css">
+
+<LINK REL="next" HREF="node4.html">
+<LINK REL="previous" HREF="node2.html">
+<LINK REL="up" HREF="cas.html">
+<LINK REL="next" HREF="node4.html">
+</HEAD>
+
+<BODY >
+
+<DIV CLASS="navigation"><!--Navigation Panel-->
+<A NAME="tex2html49"
+  HREF="node4.html">
+<IMG WIDTH="37" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="next"
+ SRC="/usr/share/latex2html/icons/next.png"></A> 
+<A NAME="tex2html47"
+  HREF="cas.html">
+<IMG WIDTH="26" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="up"
+ SRC="/usr/share/latex2html/icons/up.png"></A> 
+<A NAME="tex2html41"
+  HREF="node2.html">
+<IMG WIDTH="63" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="previous"
+ SRC="/usr/share/latex2html/icons/prev.png"></A>   
+<BR>
+<B> Next:</B> <A NAME="tex2html50"
+  HREF="node4.html">Performance</A>
+<B> Up:</B> <A NAME="tex2html48"
+  HREF="cas.html">Experiences with Content Addressable</A>
+<B> Previous:</B> <A NAME="tex2html42"
+  HREF="node2.html">Image Analysis</A>
+<BR>
+<BR></DIV>
+<!--End of Navigation Panel-->
+
+<H1><A NAME="SECTION00030000000000000000">
+Implementation</A>
+</H1>
+
+<P>
+In order to get a better idea of the performance and efficiency implications 
+of using a CAS based image management system, we constructed a prototype by
+combining the Venti&nbsp;[<A
+ HREF="node6.html#venti">10</A>] CAS back end with a service-oriented file 
+system to provide an organizational infrastructure and tested it with 
+guest logical partitions running under QEMU&nbsp;[<A
+ HREF="node6.html#qemu">2</A>] which provides the
+Virtual I/O infrastructure for KVM&nbsp;[<A
+ HREF="node6.html#kvm">6</A>]. 
+
+<P>
+Venti provides virtualized storage which is addressed via SHA-1 hashes.
+It accepts blocks from 512 bytes to 56kb, using hash trees of blocks to
+represent larger entries (VtEntry), and optionally organizing these entries in 
+hash trees of hierarchical directories (VtDir), which are collected into
+snapshots represented by a VtRoot structure.
+Each block, VtEntry, VtDir, and VtRoot has an associated hash value, which 
+is also referred to as a score.  
+Venti maintains an index which maps these scores to physical disk blocks
+which typically contain compressed versions of the data they represent.
+Since the SHA-1 hash function effectively summarizes the contents of the
+block, duplicate blocks will resolve to the same hash index - allowing 
+Venti to coalesce duplicate data to the same blocks on physical storage.
+
+<P>
+Using Venti to store partition images is as simple as treating the partition
+as a large VtEntry.
+Slightly more intelligent storage of file system data (to match native block
+sizes and avoid scanning empty blocks) can be done with only rudimentary 
+knowledge of the underlying file system.
+If the file system isn't recognized, the system can fall-back to a default
+block size of 4k.
+This approach is used by the vbackup utility in 
+Plan 9 from User Space&nbsp;[<A
+ HREF="node6.html#plan9ports">3</A>] which can be used to provide 
+temporal snapshots of 
+typical UNIX file systems, and is also used by Foundation&nbsp;[<A
+ HREF="node6.html#foundation">12</A>]
+which provides archival snapshots of VMware disk images.
+Multi-partition disks can be represented as a simple one level directory 
+with a single VtEntry per partition.  
+
+<P>
+Venti only presents an interface to retrieving data by scores and doesn't
+provide any other visible organizational structure.  
+To address this, we built vdiskfs, a stackable synthetic file server which 
+provides support for storing and retrieving disk images in Venti.
+Currently, it is a simple pass-through file server that recognizes special
+files ending in a ``.vdisk'' extension. 
+In the underlying file system a ``.vdisk'' file contains the SHA-1 hash that 
+represents a Venti disk image snapshot.  
+When accessed via vdiskfs, reads of the file will expose a virtual raw image
+file.
+vdiskfs is built as a user-space file system using the 9P protocol which can
+be mounted by the Linux v9fs&nbsp;[<A
+ HREF="node6.html#graverobber">5</A>] kernel module or accessed 
+directly by applications.
+
+<P>
+QEMU internally implements an abstraction for block device level I/O through 
+the BlockDriverState API.  
+We implemented a new block device that connects directly to a 9P file server.  
+The user simply provides the host information of the 9P
+file server along with a path within the server and QEMU will connect to 
+the server, obtain the size of the specified file, and direct all read/write 
+requests to the file server.
+
+<P>
+In communicating directly to the 9P file server, QEMU can avoid extraneous data
+copying that would occur by first mounting the file system in the host with a
+synthetic file system.  It also avoids double-caching the data in the host's
+page cache.  Consider a scenario where there were two guests both sharing the
+same underlying data block.  This block will already exist once in the host's
+page cache when Venti reads it for the first time.  If a v9fs mount was created
+that exposed multiple images that contained this block, whenever a user space
+process (like QEMU) read these images, a new page cache entry would be added for
+each image.
+
+<P>
+While QEMU can interact directly with the 9P file server, there is a great 
+deal of utility in having a user-level file system mount of the synthetic 
+file system.  
+Virtualization software that is not aware of 9P can open these images directly 
+paying an additional memory/performance cost.  
+A user can potentially import and export images easily using traditional 
+file system management utilities (like cp).  
+
+<P>
+We used QEMU/KVM as the virtual machine monitor in our implementation.  
+QEMU is a system emulator that can take advantage of the Linux Kernel Virtual 
+Machine (KVM) interface to achieve near-native performance.  
+All I/O in QEMU is implemented in user space which makes it particularly well 
+suited for investigating I/O performance.
+
+<P>
+QEMU/KVM supports paravirtual I/O with the VirtIO&nbsp;[<A
+ HREF="node6.html#virtio">13</A>] framework.  
+VirtIO is a simple ring-queue based abstraction that minimizes the number of 
+transitions between the host and guest kernel.  
+For the purposes of this paper, we limited our analysis to the emulated 
+IDE adapter within QEMU/KVM.  
+VirtIO currently only achieves better performance for block I/O in 
+circumstances where it can issue many outstanding requests at a time.  
+The current vdiskfs prototype can only process a single request at a time.  
+Moreover, QEMU is also limited in its implementation to only support a 
+single outstanding request at a time.
+
+<DIV CLASS="navigation"><HR>
+<!--Navigation Panel-->
+<A NAME="tex2html49"
+  HREF="node4.html">
+<IMG WIDTH="37" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="next"
+ SRC="/usr/share/latex2html/icons/next.png"></A> 
+<A NAME="tex2html47"
+  HREF="cas.html">
+<IMG WIDTH="26" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="up"
+ SRC="/usr/share/latex2html/icons/up.png"></A> 
+<A NAME="tex2html41"
+  HREF="node2.html">
+<IMG WIDTH="63" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="previous"
+ SRC="/usr/share/latex2html/icons/prev.png"></A>   
+<BR>
+<B> Next:</B> <A NAME="tex2html50"
+  HREF="node4.html">Performance</A>
+<B> Up:</B> <A NAME="tex2html48"
+  HREF="cas.html">Experiences with Content Addressable</A>
+<B> Previous:</B> <A NAME="tex2html42"
+  HREF="node2.html">Image Analysis</A></DIV>
+<!--End of Navigation Panel-->
+<ADDRESS>
+Eric Van Hensbegren
+2008-11-04
+</ADDRESS>
+</BODY>
+</HTML>

@@ -1,0 +1,34 @@
+\section{Motivation}
+
+The installation, organization, and management of disk images is a critical
+component of modern virtualization technologies. 
+In typical configurations, it is the disk images (and in particular the root
+disk image) that defines the identity of a particular virtual machine
+instance.
+To be effective, a storage virtualization system must be extensible,
+able to scale to a large number of virtual machine instances, and support
+advanced storage features such as replication, snapshoting, and migration.
+
+Boilerplate paragraph on virtualization storage.
+
+Boilerplate paragraph on cloud computing
+
+Backgorund on image management either being raw partitions or image files.
+
+Background on copy-on-write image management.
+
+Review of stackable file system experiences. ~\cite{blutopia}
+
+Discuss our conclusion from the Blutopia work which discussed
+the use of content addressable storage to deal with problems of
+stackable storage (namely drift).
+
+The rest of this paper is organized as follows, section 2 discusses our
+analysis of several Linux images based on different versions of different
+distributions on two different architectures.  
+Section 3 describes our prototype implementation of a content addressable
+image management system for virtual machines.
+Section 4 gives our preliminary performance analysis of the prototype,
+and section 5 describes our future work.
+
+

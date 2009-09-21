@@ -1,0 +1,62 @@
+\section{Future Work}
+
+While we have shown promising efficiency improvements, it is clear that the
+current Venti performance in this environment is far below what would be
+desirable.
+Venti was primarily developed as a backup archive server, and as such its
+implementation is single threaded and not constructed to scale under
+heavy load.
+Additionally, its performance is primarily bottlenecked by the requirement
+of indirecting block requests via the index which results in random access
+by the nature of the hash algorithm~\cite{memventi}.
+In our future work we plan to address these issues by reworking the Venti
+implementation to support multi-threading, more aggressive caching, and
+zero-copy of block data.
+The use of flash storage for the index may further diminish the additional
+latency inherent in the random-access seek behavior of the hash lookup.
+
+Our target environment will consist of a cluster of collaborating 
+Venti servers which provide the backing store for a 
+larger cluster of servers acting as hosts for virtual machines.  
+In addition to our core Venti server optimizations, we wish to employ
+copy-on-read local disk caches on the virtual machine hosts to hide 
+remaining latency from the guests.
+We also plan on investigating the use of collaborative caching environments
+which will allow these hosts and perhaps even the guests to share each other's 
+cache resources.
+
+Another pressing area of future work is to add write support to vdiskfs to
+allow end-users to interact with it in a much more natural manner.
+We plan on employing a transient copy-on-write layer which will buffer
+writes to the underlying disk.  
+This write buffer will routinely be flushed to Venti and the vdisk score
+updated.
+Venti already maintains a history of snapshot scores through links in the 
+VtRoot structure, so historical versions of the image can be accessed at later
+times.
+We would also like to provide a synthetic file hierarchy to access snapshots
+in much the same way as implemented by Plan 9's yesterday command.
+
+Linux recently added a series of system calls to allow user space applications 
+to directly manipulate kernel buffers known as splice.  
+The splice system call could be used by a 9P file server to move data 
+directly from the host page cache, into a kernel buffer, and then allow 
+the actual client application (such as QEMU's block-9P back end) to copy the 
+data directly from the kernel buffer into its memory.  
+In this way, we can avoid the additional copy to and from the TCP socket buffer.
+
+Another area to explore is to look at integrating the content addressable
+storage system with an underlying file system to see if we can obtain 
+efficiency closer to that of what we measured using our file-system crawling
+mechanism.
+We could use our paravirtualized 9P implementation to allow direct access
+to the file system from the guests instead of using virtual block devices.
+This would eliminate some of the extra overhead, and may provide a better
+basis for cooperative page caches between virtual machines.
+It also provides a more meaningful way for a user to interact with the 
+guest's file system contents than virtual images provide.
+
+While the large performance gap represents a particularly difficult challenge, 
+we believe that the efficiency promise of content addressable storage for 
+large scale virtual machine environments more than adequately justifies 
+additional investment and investigation in this area.

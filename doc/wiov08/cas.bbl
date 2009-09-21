@@ -1,0 +1,75 @@
+\begin{thebibliography}{10}
+
+\bibitem{kittyhawk}
+Jonathan Appavoo, Volkmar Uhlig, and Amos Waterland.
+\newblock Project kittyhawk: building a global-scale computer: {Blue Gene/P} as
+  a generic computing platform.
+\newblock In {\em ACM SIGOPS Operating System Review}, 2008.
+
+\bibitem{qemu}
+F.~Bellard.
+\newblock {QEMU}, a fast and portable dynamic translator.
+\newblock In {\em Proceedings of the USENIX Annual Technical Conference}, 2005.
+
+\bibitem{plan9ports}
+Russ Cox.
+\newblock {Plan~9} from user space.
+
+\bibitem{lvm}
+Michael Hasenstein.
+\newblock The logical volume manager ({LVM}).
+
+\bibitem{graverobber}
+Eric~Van Hensbergen and Ron Minnich.
+\newblock Grave robbers from outer space: Using {9P2000} under {Linux}.
+\newblock In {\em In Proceedings of Freenix Annual Conference}, pages 83--94,
+  2005.
+
+\bibitem{kvm}
+A.~Kivity, Y.~Kamay, D.~Laor, U.~Lublin, and A.~Liguori.
+\newblock {KVM}: the {Linux} virtual machine monitor.
+\newblock In {\em Ottawa Linux Symposium}, 2007.
+
+\bibitem{memventi}
+Mechiel Lukkien.
+\newblock Venti analysis and memventi implementation.
+\newblock Technical Report 694, University of Twente, 2007.
+
+\bibitem{nath}
+Partho Nath, Michael Jozuch, David OHallaron, Jan Harkes, M.~Satyanarayanan,
+  Niraj Toli, and Matt Toups.
+\newblock Design tradeoffs in applying content addressable storage to
+  enterprise-scale systems based on virtual machines.
+\newblock In {\em Proceedings of the 2006 USENIX Annual Technical Conference},
+  2006.
+
+\bibitem{blutopia}
+Fabio Olivera and etal.
+\newblock Blutopia: Stackable storage for cluster management.
+\newblock In {\em Proceedings of the IEEE Clusters conference}, 2007.
+
+\bibitem{venti}
+Sean Quinlan and Sean Dorward.
+\newblock Venti: a new approach to archival storage.
+\newblock In {\em the USENIX Conference on File and Storage Technologies},
+  2002.
+
+\bibitem{mirage}
+Darrell Reimer, Arun Thomas, Glenn Ammons, Todd Mummert, Bown Alpern, and
+  Vasanth Bala.
+\newblock Opening black boxes: Using semantic information to combat virtual
+  machine image sprawl.
+\newblock In {\em Proceedings of the 2008 USENIX Virtual Execution Environments
+  Workshop}, 2008.
+
+\bibitem{foundation}
+Sean Rhea, Russ Cox, and Alex Pesterev.
+\newblock Fast, inexpensive content-addressed storage in foundation.
+\newblock In {\em Proceedings of the USENIX Annual Technical Conference}, 2008.
+
+\bibitem{virtio}
+Rusty Russel.
+\newblock virtio: towardsa a de-facto standard for virtual {I/O} devices.
+\newblock In {\em Operating Systems Review}, 2008.
+
+\end{thebibliography}

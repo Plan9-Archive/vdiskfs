@@ -1,0 +1,115 @@
+% template-v1.tex: LaTeX2e template for Usenix papers.
+% Version: usetex-v1, 31-Oct-2002
+% Revision history at end.
+
+\documentclass[finalversion,endnotes]{usetex-v1}
+% Choose the appropriate option:
+%
+% 1. workingdraft:
+%
+%       For initial submission and shepherding.  Features prominent
+%       date, notice of draft status, page numbers, and annotation
+%       facilities.  The three supported annotation macros are:
+%               \edannote{text}         -- anonymous annotation note
+%               \begin{ednote}{who}     -- annotation note attributed
+%                 text                          to ``who''
+%               \end{ednote}
+%               \HERE                   -- a marker that can be left
+%                                               in the text and easily
+%                                               searched for later
+% 2. proof:
+%
+%         A galley proof identical to the final copy except for page
+%         numbering and proof date on the bottom.  Annotations are
+%         removed.
+%
+% 3. webversion:
+%
+%       A web-publishable version, uses \docstatus{} to indicate
+%       publication information (where and when paper was published),
+%       and page numbers.
+%
+% 4. finalversion:
+%
+%       The final camera-ready-copy (CRC) version of the paper.
+%       Published in conference proceedings.  This doesn't include
+%       page numbers, annotations, or draft status (Usenix adds
+%       headers, footers, and page numbers onto the CRC).
+%
+% If several are used, the last one in this list wins
+%
+
+%
+% In addition, the option "endnotes" permits the use of the
+% otherwise-disabled, Usenix-deprecated footnote{} command in
+% documents.  In this case, be sure to include a
+% \makeendnotes command at the end of your document or
+% the endnotes will not actually appear.
+%
+
+% These packages are optional, but useful
+\usepackage{epsfig}     % postscript figures
+\usepackage{url}        % \url{} command with good linebreaks
+
+\begin{document}
+
+\title{Experiences with Content Addressable Storage and Virtual Disks}
+
+% document status: submitted to foo, published in bar, etc.
+\docstatus{Submitted to Workshop on I/O Virtualization 2008}
+
+% authors.  separate groupings with \and.
+\author{
+\authname{Anthony Liguori}
+\authaddr{IBM Linux Technology Center}
+\authurl{\url{aliguori@us.ibm.com}}
+\and
+\authname{Eric Van Hensbergen}
+\authaddr{IBM Research}
+\authurl{\url{bergevan@us.ibm.com}}
+%
+} % end author
+
+\maketitle
+
+\input{abstract}
+\input{motivation}
+\input{images}
+\input{implementation}
+\input{performance}
+\input{efficiency}
+\input{future}
+
+\bibliographystyle{plain}
+\bibliography{references}
+
+\end{document}
+
+% Revision History:
+% designed specifically to meet requirements of
+%  TCL97 committee.
+% originally a template for producing IEEE-format articles using LaTeX.
+%   written by Matthew Ward, CS Department, Worcester Polytechnic Institute.
+% adapted by David Beazley for his excellent SWIG paper in Proceedings,
+%   Tcl 96
+% turned into a smartass generic template by De Clarke, with thanks to
+%   both the above pioneers
+% use at your own risk.  Complaints to /dev/null.
+% make it two column with no page numbering, default is 10 point
+
+% Munged by Fred Douglis <douglis@research.att.com> 10/97 to separate
+% the .sty file from the LaTeX source template, so that people can
+% more easily include the .sty file into an existing document.  Also
+% changed to more closely follow the style guidelines as represented
+% by the Word sample file.
+% This version uses the latex2e styles, not the very ancient 2.09 stuff.
+%
+
+% Revised July--October 2002 by Bart Massey, Chuck Cranor, Erez
+% Zadok and the FREENIX Track folks to ``be easier to use and work
+% better''. Hah.  Major changes include transformation into a
+% latex2e class file, better support for drafts, and some
+% layout improvements.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% for Ispell:
+% LocalWords:  workingdraft BCM ednote SubSections xfig SubSection joe

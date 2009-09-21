@@ -1,0 +1,165 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+
+<!--Converted with LaTeX2HTML 2002-2-1 (1.71)
+original version by:  Nikos Drakos, CBLU, University of Leeds
+* revised and updated by:  Marcus Hennecke, Ross Moore, Herb Swan
+* with significant contributions from:
+  Jens Lippmann, Marek Rouchal, Martin Wilck and others -->
+<HTML>
+<HEAD>
+<TITLE>Motivation</TITLE>
+<META NAME="description" CONTENT="Motivation">
+<META NAME="keywords" CONTENT="cas">
+<META NAME="resource-type" CONTENT="document">
+<META NAME="distribution" CONTENT="global">
+
+<META NAME="Generator" CONTENT="LaTeX2HTML v2002-2-1">
+<META HTTP-EQUIV="Content-Style-Type" CONTENT="text/css">
+
+<LINK REL="STYLESHEET" HREF="cas.css">
+
+<LINK REL="next" HREF="node2.html">
+<LINK REL="previous" HREF="cas.html">
+<LINK REL="up" HREF="cas.html">
+<LINK REL="next" HREF="node2.html">
+</HEAD>
+
+<BODY >
+
+<DIV CLASS="navigation"><!--Navigation Panel-->
+<A NAME="tex2html29"
+  HREF="node2.html">
+<IMG WIDTH="37" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="next"
+ SRC="/usr/share/latex2html/icons/next.png"></A> 
+<A NAME="tex2html27"
+  HREF="cas.html">
+<IMG WIDTH="26" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="up"
+ SRC="/usr/share/latex2html/icons/up.png"></A> 
+<A NAME="tex2html21"
+  HREF="cas.html">
+<IMG WIDTH="63" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="previous"
+ SRC="/usr/share/latex2html/icons/prev.png"></A>   
+<BR>
+<B> Next:</B> <A NAME="tex2html30"
+  HREF="node2.html">Image Analysis</A>
+<B> Up:</B> <A NAME="tex2html28"
+  HREF="cas.html">Experiences with Content Addressable</A>
+<B> Previous:</B> <A NAME="tex2html22"
+  HREF="cas.html">Experiences with Content Addressable</A>
+<BR>
+<BR></DIV>
+<!--End of Navigation Panel-->
+
+<H1><A NAME="SECTION00010000000000000000">
+Motivation</A>
+</H1>
+
+<P>
+The installation, organization, and management of disk images is a critical
+component of modern virtualization technologies. 
+In typical configurations, it is the disk images (and in particular the root
+disk image) that defines the identity of a particular virtual machine
+instance.
+To be effective, a storage virtualization system must be extensible,
+able to scale to a large number of virtual machine instances, and support
+advanced storage features such as replication, snapshoting, and migration.
+It is also highly desirable that such a system be able to rapidly clone
+disk images, such that multiple virtual machines may use it as a template
+for their own image.
+
+<P>
+The introduction of cloud computing magnifies the importance
+of scalability and efficiency in dealing with storage virtualization.
+Instead of dozens of virtual machines, cloud environments are designed
+to support thousands (if not hundreds of thousands&nbsp;[<A
+ HREF="node6.html#kittyhawk">1</A>]) of 
+virtual machines and so will require many-thousand virtual disk images
+in order to function - as well as sufficient infrastructure to provide
+backups and management.
+
+<P>
+Today's virtualization environments have a variety of mechanisms to 
+provide disk images.
+Users may use raw hardware partitions physically located on the host's
+disks, partitions provided by an Operating System's logical volume 
+manager&nbsp;[<A
+ HREF="node6.html#lvm">4</A>], or partitions accessed via a storage area network.
+In addition to these raw partitions, many hypervisors provide copy-on-write
+mechanisms which allow base images to be used as read-only templates for 
+multiple logical instances which store per-instance modifications.
+
+<P>
+We have previously experimented with both file and block-based copy-on-write
+technologies&nbsp;[<A
+ HREF="node6.html#blutopia">9</A>] for managing the life cycle of servers.
+While we found such ``stackable'' technologies to be very effective for
+initial installation, the per-instance copy-on-write layers tended to drift.
+For example, over the lifetime of the Fedora 7 Linux distribution there 
+were over 500MB of software updates to the base installation of 1.8GB.  
+While that
+represents only about 27% of changes over a year of deployment - it becomes
+greatly magnified in a large-scale virtualization environment.  
+
+<P>
+Our assessment at the time was that simple stacking wasn't sufficient,
+and that a content addressable storage (CAS) approach to coalescing 
+duplicate data between multiple disk images would provide a solution to 
+the incremental drift of virtual disks.  
+Additionally, the nature of CAS would obviate the
+need for end-users to start with a template image as any duplication would
+be identified and addressed by the CAS back end.
+Furthermore, CAS solutions lend themselves to rapid cloning, snapshoting,
+and can be configured to implicitly provide temporal-based backups of images.
+
+<P>
+Others have looked at using CAS solutions for archival of virtual machine
+images&nbsp;[<A
+ HREF="node6.html#foundation">12</A>] and managing disk images&nbsp;[<A
+ HREF="node6.html#mirage">11</A>].  
+Nath, et.al. evaluate the use and design tradeoffs of CAS
+in managing a large set of VM-based systems in an enterprise 
+environment&nbsp;[<A
+ HREF="node6.html#nath">8</A>].
+In all of these cases, the authors used content addressable storage as a 
+sort of library from which disk images could be ``checked-out''.  
+We were more interested in looking at a <SPAN  CLASS="textit">live</SPAN> solution where the 
+disk image was always directly backed by content addressable storage such 
+that no check-in or check-out transactions are necessary. 
+
+<P>
+The rest of this paper is organized as follows: section 2 provides the results
+of our preliminary analysis comparing the amount of duplication present in
+several loosely related disk images.
+Section 3 describes our prototype implementation of a content addressable
+image management system for virtual machines.
+Section 4 gives our preliminary performance analysis of the prototype,
+and section 5 describes our status and future work.
+
+<DIV CLASS="navigation"><HR>
+<!--Navigation Panel-->
+<A NAME="tex2html29"
+  HREF="node2.html">
+<IMG WIDTH="37" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="next"
+ SRC="/usr/share/latex2html/icons/next.png"></A> 
+<A NAME="tex2html27"
+  HREF="cas.html">
+<IMG WIDTH="26" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="up"
+ SRC="/usr/share/latex2html/icons/up.png"></A> 
+<A NAME="tex2html21"
+  HREF="cas.html">
+<IMG WIDTH="63" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="previous"
+ SRC="/usr/share/latex2html/icons/prev.png"></A>   
+<BR>
+<B> Next:</B> <A NAME="tex2html30"
+  HREF="node2.html">Image Analysis</A>
+<B> Up:</B> <A NAME="tex2html28"
+  HREF="cas.html">Experiences with Content Addressable</A>
+<B> Previous:</B> <A NAME="tex2html22"
+  HREF="cas.html">Experiences with Content Addressable</A></DIV>
+<!--End of Navigation Panel-->
+<ADDRESS>
+Eric Van Hensbegren
+2008-11-04
+</ADDRESS>
+</BODY>
+</HTML>

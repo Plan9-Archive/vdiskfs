@@ -1,0 +1,15 @@
+Checkpoint
+
+# Please enter the commit message for your changes.
+# (Comment lines starting with '#' will not be included)
+# On branch master
+# Changes to be committed:
+#   (use "git reset HEAD <file>..." to unstage)
+#
+#	new file:   fsscan.c
+#	modified:   imagescan.bash
+#
+# Untracked files:
+#   (use "git add <file>..." to include in what will be committed)
+#
+#	.foo/

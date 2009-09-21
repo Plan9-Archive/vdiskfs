@@ -1,0 +1,17 @@
+\begin{abstract}
+Efficiently managing storage is important for virtualized computing 
+environments. 
+Its importance is magnified by developments such as cloud computing which 
+consolidate many thousands of virtual machines (and their associated storage). 
+The nature of this storage is such that there is a large amount of 
+duplication between otherwise discreet virtual machines. 
+Building upon previous work in content addressable storage, we have built a 
+prototype for consolidating virtual disk images using a service-oriented file 
+system. 
+It provides a hierarchical organization, manages historical snapshots of 
+drive images, and takes steps to optimize encoding based on partition type and 
+file system. 
+In this paper we present our experiences with building this prototype and 
+using it to store a variety of drive images for QEMU and the Linux
+Kernel Virtual Machine (KVM).
+\end{abstract}

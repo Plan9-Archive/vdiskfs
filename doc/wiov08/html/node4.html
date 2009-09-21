@@ -1,0 +1,242 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+
+<!--Converted with LaTeX2HTML 2002-2-1 (1.71)
+original version by:  Nikos Drakos, CBLU, University of Leeds
+* revised and updated by:  Marcus Hennecke, Ross Moore, Herb Swan
+* with significant contributions from:
+  Jens Lippmann, Marek Rouchal, Martin Wilck and others -->
+<HTML>
+<HEAD>
+<TITLE>Performance</TITLE>
+<META NAME="description" CONTENT="Performance">
+<META NAME="keywords" CONTENT="cas">
+<META NAME="resource-type" CONTENT="document">
+<META NAME="distribution" CONTENT="global">
+
+<META NAME="Generator" CONTENT="LaTeX2HTML v2002-2-1">
+<META HTTP-EQUIV="Content-Style-Type" CONTENT="text/css">
+
+<LINK REL="STYLESHEET" HREF="cas.css">
+
+<LINK REL="next" HREF="node5.html">
+<LINK REL="previous" HREF="node3.html">
+<LINK REL="up" HREF="cas.html">
+<LINK REL="next" HREF="node5.html">
+</HEAD>
+
+<BODY >
+
+<DIV CLASS="navigation"><!--Navigation Panel-->
+<A NAME="tex2html59"
+  HREF="node5.html">
+<IMG WIDTH="37" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="next"
+ SRC="/usr/share/latex2html/icons/next.png"></A> 
+<A NAME="tex2html57"
+  HREF="cas.html">
+<IMG WIDTH="26" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="up"
+ SRC="/usr/share/latex2html/icons/up.png"></A> 
+<A NAME="tex2html51"
+  HREF="node3.html">
+<IMG WIDTH="63" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="previous"
+ SRC="/usr/share/latex2html/icons/prev.png"></A>   
+<BR>
+<B> Next:</B> <A NAME="tex2html60"
+  HREF="node5.html">Future Work</A>
+<B> Up:</B> <A NAME="tex2html58"
+  HREF="cas.html">Experiences with Content Addressable</A>
+<B> Previous:</B> <A NAME="tex2html52"
+  HREF="node3.html">Implementation</A>
+<BR>
+<BR></DIV>
+<!--End of Navigation Panel-->
+
+<H1><A NAME="SECTION00040000000000000000">
+Performance</A>
+</H1>
+
+<P>
+Our performance tests were done using QEMU/KVM on a 
+2-way AMD Quad-core Barcelona system with 8GB of
+RAM and a 13 disk fibre channel storage array. Venti
+was configured with a 10GB arena and a 512MB isect
+and bloom filter. Venti was configured with 32MB of
+memory cache, a 32MB bloom cache, and a 64MB isect cache.
+
+<P>
+For each of our benchmarks, we compared an image
+in an Ext3 file system using the QEMU raw block driver
+back end, an image exposed through ufs, a user space 9P
+file server, using the QEMU block-9P block driver back
+end, and then an image stored in Venti exposed through
+vdiskfs using the QEMU block-9P block driver back end.
+
+<P>
+Each benchmark used a fresh Fedora 9 install for
+x86_64. For all benchmarks, we backed the block driver
+we were testing with a temporary QCOW2 image. The 
+effect of this is that all writes were thrown away. This was
+necessary since vdiskfs does not currently support write
+operations.
+
+<P>
+Our first benchmark was a simple operating system
+boot measured against wall clock time. The purposes of
+this benchmark was to determine if a casual user would
+be impacted by the use of a content addressable storage
+backed root disk.
+Our measurements showed that the when using the QEMU
+block-9P driver against a simple 9P block server, there
+was no statistically significant difference in boot time
+or CPU consumption compared to the QEMU raw block driver.
+When using the QEMU block-9P driver against vdiskfs,
+we observed a 25reduction in CPU consumption due to increased latency for
+I/O operations.
+
+<P>
+
+<DIV ALIGN="CENTER"><A NAME="fig:bootup"></A><A NAME="212"></A>
+<TABLE>
+<CAPTION ALIGN="BOTTOM"><STRONG>Figure 6:</STRONG>
+<SMALL CLASS="SMALL"><I>Boot Time of CAS Storage</I></SMALL></CAPTION>
+<TR><TD><IMG
+ WIDTH="287" HEIGHT="239" BORDER="0"
+ SRC="img3.png"
+ ALT="\begin{figure}\begin{centering}
+\epsfig{file=bootup.eps, width=2.50in}
+\small\itshape\end{centering}\end{figure}"></TD></TR>
+</TABLE>
+</DIV>
+
+<P>
+The second benchmark was a timed <SPAN  CLASS="textit">dd</SPAN> operation.
+The transfer size was 1MB and within the guest, direct
+I/O was used to eliminate any effects of the guest page
+cache. It demonstrates the performance of streaming
+read. All benchmarks were done with a warm cache so the
+data is being retrieved from the host page cache.
+
+<P>
+The ufs back end is able to obtain about 111MB/sec using
+block-9P.  Since all accesses are being satisfied by the
+host page cache, the only limiting factor are additional
+copies within ufs and within the socket buffers.
+
+<P>
+The QEMU raw block driver is able to achieve over
+650MB/sec when data is accessed through the host page cache.
+We believe it is possible to achieve performance similar to
+the QEMU raw block driver through ufs by utilizing splice
+in Linux.
+
+<P>
+
+<DIV ALIGN="CENTER"><A NAME="fig:streamingread"></A><A NAME="220"></A>
+<TABLE>
+<CAPTION ALIGN="BOTTOM"><STRONG>Figure 7:</STRONG>
+<SMALL CLASS="SMALL"><I>Streaming Read Performance</I></SMALL></CAPTION>
+<TR><TD><IMG
+ WIDTH="287" HEIGHT="250" BORDER="0"
+ SRC="img4.png"
+ ALT="\begin{figure}\begin{centering}
+\epsfig{file=dd.eps, width=2.50in}
+\small\itshape\end{centering}\end{figure}"></TD></TR>
+</TABLE>
+</DIV>
+
+<P>
+vdiskfs is only able to obtain about 12MB/sec using
+block-9P. 
+While this performance may seem disappointing, it
+is all we expected from the existing implementation
+of Venti and we talk about some approaches to improving
+it in Section 5.
+
+<DIV ALIGN="CENTER"><A NAME="fig:venti"></A><A NAME="265"></A>
+<TABLE>
+<CAPTION ALIGN="BOTTOM"><STRONG>Figure 8:</STRONG>
+<SMALL CLASS="SMALL"><I>Efficiency of Underlying Storage Technique</I></SMALL></CAPTION>
+<TR><TD>
+<DIV ALIGN="CENTER">
+<img src="venti_analysis.png">
+</DIV></TD></TR>
+</TABLE>
+</DIV>
+
+<P>
+Finally, to validate whether or not content addressable storage schemes
+would improve storage efficiency in the face of software-updates we compared
+the disk overhead of two instances of a Linux installation before and after
+a software update.  We compared raw disk utilization, file system reported
+space used, copy-on-write image disk utilization, content addressable storage,
+and compressed content addressable storage.
+To construct the copy-on-write images, we used the QEMU QCOW2 format and
+used the same base image for both <SPAN  CLASS="textit">Base</SPAN> and <SPAN  CLASS="textit">Base2</SPAN>.
+To evaluate the content addressable storage efficiency we used Venti to
+snapshot the raw disk images after installation and again after a manual
+software update was run.  We used Venti's web interface to collect data about
+its storage utilization for compressed data as well as its projections for
+uncompressed data.
+
+<P>
+As can be seen in Figure&nbsp;<A HREF="#fig:venti">8</A> the various solutions all take
+approximately the same amount of storage for a single image.  When adding
+a second instance of the same image, the raw storage use doubles while both
+the copy-on-write storage and content-addressable-storage essentially remain
+the same.
+The software update process on each image downloaded approximately 500MB of 
+data.  As the update applied, each QCOW2 image (as well as the raw disk
+images) increased in size proportionally.
+
+<P>
+We were surprised to find both the raw disk and copy-on-write overhead for the
+software update was over double what we expected.  
+We surmise this is due to temporary files and other transient data written
+to the disk and therefore the copy-on-write layer.
+This same dirty-but-unused block data is also responsible for the 
+divergence between the <SPAN  CLASS="textit">Total FS Used</SPAN> and the <SPAN  CLASS="textit">Total Disk Used</SPAN> 
+lines in the reported storage utilization.
+This behavior paints a very bad efficiency picture for copy-on-write 
+solutions in the long term.
+While copy-on-write provides some initial benefits, their storage utilization
+will steadily increase and start to converge with the amount of
+storage used by a raw-disk installation.
+
+<P>
+Utilizing the disk block scanning techniques we applied in Section 2, we
+found we could detect and de-duplicated these transient dirty blocks.
+Such an approach may work to improve overall performance once we work out
+the scalability and performance issues of the underlying CAS mechanism.
+Because Venti is partially aware of the underlying structure of the Ext2
+file system it only snapshots active file blocks.  
+As a result, its storage utilization grows slightly for the
+first software update, but the overhead of the second software update is
+completely eliminated. 
+
+<DIV CLASS="navigation"><HR>
+<!--Navigation Panel-->
+<A NAME="tex2html59"
+  HREF="node5.html">
+<IMG WIDTH="37" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="next"
+ SRC="/usr/share/latex2html/icons/next.png"></A> 
+<A NAME="tex2html57"
+  HREF="cas.html">
+<IMG WIDTH="26" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="up"
+ SRC="/usr/share/latex2html/icons/up.png"></A> 
+<A NAME="tex2html51"
+  HREF="node3.html">
+<IMG WIDTH="63" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="previous"
+ SRC="/usr/share/latex2html/icons/prev.png"></A>   
+<BR>
+<B> Next:</B> <A NAME="tex2html60"
+  HREF="node5.html">Future Work</A>
+<B> Up:</B> <A NAME="tex2html58"
+  HREF="cas.html">Experiences with Content Addressable</A>
+<B> Previous:</B> <A NAME="tex2html52"
+  HREF="node3.html">Implementation</A></DIV>
+<!--End of Navigation Panel-->
+<ADDRESS>
+Eric Van Hensbegren
+2008-11-04
+</ADDRESS>
+</BODY>
+</HTML>
